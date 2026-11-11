@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#171a21">
+<title>Visualizador de Bordado PES/PEC</title>
+<style>
+:root{--bg:#0f1115;--panel:#171a21;--sunk:#11141b;--line:#2a2f3a;--tx:#e7e9ee;--mu:#9aa2b1;--ac:#5b8cff}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{display:flex;flex-direction:column;height:100dvh;overflow:hidden;background:var(--bg);color:var(--tx);font:14px/1.4 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+header{display:flex;align-items:center;gap:10px;padding:8px 12px;padding-top:max(8px,env(safe-area-inset-top));background:var(--panel);border-bottom:1px solid var(--line)}
+h1{flex:1;min-width:0;margin:0;font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.btn{min-height:40px;padding:0 14px;border:0;border-radius:8px;background:var(--ac);color:#fff;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn.sec{background:var(--line);color:var(--tx)}
+.btn.sec[aria-pressed=true]{background:#33436b;box-shadow:inset 0 0 0 1px var(--ac)}
+#status{padding:6px 12px;font-size:12px;color:var(--mu);background:var(--sunk);border-bottom:1px solid var(--line)}
+.layout{flex:1;min-height:0;display:flex}
+aside{width:300px;flex:none;display:flex;flex-direction:column;min-height:0;background:var(--panel);border-right:1px solid var(--line)}
+.ah{display:flex;align-items:center;justify-content:space-between;padding:10px 12px 0}
+#closeTree,#openTree,.scrim{display:none}
+.src{display:flex;gap:8px;padding:10px 12px}
+.src .btn{flex:1;padding:0 8px}
+aside input[type=search],aside input[type=text]{width:calc(100% - 24px);margin:0 12px 8px;min-height:40px;padding:0 10px;font-size:16px;background:var(--sunk);border:1px solid var(--line);border-radius:8px}
+.cfg{margin:0 12px 8px;font-size:12px;color:var(--mu)}
+.cfg summary{cursor:pointer;min-height:28px}
+.cfg ol{padding-left:18px;margin:6px 0}
+.cfg input{width:100%!important;margin:4px 0 0!important}
+#tree{flex:1;min-height:0;overflow:auto;padding:0 0 16px}
+.grp{padding:8px 12px 2px;font-size:12px;color:var(--mu)}
+.row{display:flex;align-items:center;gap:8px;width:100%;min-height:40px;padding-right:10px;background:none;border:0;text-align:left;cursor:pointer}
+.row:hover{background:var(--sunk)}
+.row.on{background:#25304d}
+.row .ic{width:14px;flex:none;color:var(--mu);text-align:center}
+.row .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.msg{padding:6px 12px;font-size:12px;color:var(--mu)}
+main{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px;padding:10px 12px;padding-bottom:max(10px,env(safe-area-inset-bottom));overflow:auto}
+.empty{margin:auto;max-width:420px;padding:32px 20px;text-align:center;color:var(--mu);border:2px dashed var(--line);border-radius:14px;background:var(--panel)}
+.empty.over{border-color:var(--ac)}
+.empty b{color:var(--tx)}
+.empty .btn{margin-top:14px}
+#errorBox{background:#3a1a1a;border:1px solid #7a3030;color:#ffb4b4;padding:10px 14px;border-radius:8px}
+#viewer{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:flex;flex-direction:column;padding:6px 10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;min-width:0}
+.chip small{color:var(--mu);font-size:11px}
+.chip b{font-size:14px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stage{position:relative;flex:1;min-height:280px;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+.hint{position:absolute;right:8px;bottom:6px;padding:2px 8px;font-size:11px;color:#fff;background:rgba(0,0,0,.5);border-radius:6px;pointer-events:none}
+.colors{display:flex;flex-wrap:wrap;gap:6px}
+.col{display:flex;align-items:center;gap:6px;min-height:36px;padding:0 10px 0 6px;background:var(--panel);border:1px solid var(--line);border-radius:18px;cursor:pointer;white-space:nowrap}
+.col i{width:20px;height:20px;border-radius:50%;border:1px solid rgba(255,255,255,.3)}
+.col[aria-pressed=false]{opacity:.4;text-decoration:line-through}
+.tools{display:flex;flex-wrap:wrap;gap:8px}
+details.note{font-size:12px;color:var(--mu);line-height:1.5}
+details.note summary{cursor:pointer;min-height:28px}
+@media(max-width:760px){
+  #openTree,#closeTree{display:block}
+  aside{position:fixed;left:0;right:0;bottom:0;height:78dvh;z-index:30;border:1px solid var(--line);border-radius:16px 16px 0 0;transform:translateY(105%);transition:transform .2s}
+  aside.open{transform:none}
+  .scrim.show{display:block;position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.55)}
+  .chips,.colors,.tools{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .chip,.col,.tools .btn{flex:none}
+  .tools .btn{min-height:44px}
+  .hint{display:none}
+}
+@media(prefers-reduced-motion:reduce){aside{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Visualizador de Bordado</h1>
+  <button class="btn" id="openTree" type="button">Arquivos</button>
+</header>
+<div id="status" role="status" hidden></div>
+<div class="layout">
+  <aside id="side" aria-label="Arquivos na nuvem e no aparelho">
+    <div class="ah"><strong>Arquivos</strong><button class="btn sec" id="closeTree" type="button">Fechar</button></div>
+    <div class="src">
+      <button class="btn" id="driveBtn" type="button">Google Drive</button>
+      <button class="btn sec" id="dirBtn" type="button">Pasta do aparelho</button>
+    </div>
+    <input type="search" id="q" placeholder="Buscar no Drive pelo nome" enterkeyhint="search" aria-label="Buscar no Drive">
+    <details class="cfg" id="cfg">
+      <summary>Configurar Google Drive</summary>
+      <ol>
+        <li>No Google Cloud Console, crie um projeto e ative a <b>Google Drive API</b>.</li>
+        <li>Crie uma credencial <b>ID do cliente OAuth</b> do tipo "Aplicativo da Web".</li>
+        <li>Em "Origens JavaScript autorizadas", coloque o endereço onde esta página está hospedada (não funciona abrindo o arquivo direto do disco).</li>
+        <li>Cole o ID abaixo. Ele fica salvo só neste navegador.</li>
+      </ol>
+      <input type="text" id="clientId" placeholder="xxxx.apps.googleusercontent.com" autocomplete="off" spellcheck="false" aria-label="Client ID do Google">
+    </details>
+    <div id="tree" role="tree"><div class="msg">Conecte ao Drive ou escolha uma pasta do aparelho para ver os bordados em árvore.</div></div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+  <main id="main">
+    <div class="empty" id="empty">
+      <p><b>Arraste um arquivo .pes ou .pec aqui</b><br>O arquivo é lido no seu navegador e não é enviado a nenhum servidor.</p>
+      <button class="btn" id="pick" type="button">Escolher arquivo</button>
+    </div>
+    <input type="file" id="fileInput" accept=".pes,.pec" hidden>
+    <input type="file" id="dirInput" webkitdirectory multiple hidden>
+    <div id="errorBox" role="alert" hidden></div>
+    <div id="viewer" hidden>
+      <div class="chips" id="info"></div>
+      <div class="stage" id="stage">
+        <canvas id="canvas" aria-label="Desenho do bordado"></canvas>
+        <div class="hint">arraste para mover · role ou pince para zoom · toque duplo centraliza</div>
+      </div>
+      <div class="colors" id="colors" aria-label="Cores de linha"></div>
+      <div class="tools">
+        <button class="btn sec" id="showJumps" type="button" aria-pressed="false">Saltos</button>
+        <button class="btn sec" id="flipY" type="button" aria-pressed="true">Inverter vertical</button>
+        <button class="btn sec" id="bgBtn" type="button">Fundo</button>
+        <button class="btn sec" id="resetView" type="button">Centralizar</button>
+        <button class="btn" id="downloadSvg" type="button">Baixar SVG</button>
+      </div>
+    </div>
+    <details class="note">
+      <summary>Sobre o formato e as cores</summary>
+      <p>O formato .PES é proprietário (Brother/Babylock) e não tem especificação pública; a leitura usa o bloco de pontos "PEC" como decodificado por projetos abertos (pyembroidery, libembroidery). As cores vêm do índice de linha gravado no bloco PEC (tabela padrão de 65 cores Brother). Toque numa cor para ocultar ou mostrar aquele bloco. Fontes embutidas e preenchimentos programáveis podem não aparecer.</p>
+    </details>
+  </main>
+</div>
+<script>
+(function () {
+  // ---------- PES / PEC parsing ----------
+
+  function readAscii(view, offset, length) {
+    let s = '';
+    for (let i = 0; i < length; i++) s += String.fromCharCode(view.getUint8(offset + i));
+    return s;
+  }
+
+  function parsePES(buffer) {
+    const view = new DataView(buffer);
+    if (view.byteLength < 16) throw new Error('arquivo muito pequeno / vazio.');
+    const magic = readAscii(view, 0, 8);
+    let pecStart;
+    if (magic === '#PEC0001') {
+      pecStart = 8;
+    } else if (magic.slice(0, 4) === '#PES') {
+      pecStart = view.getUint32(8, true);
+      if (pecStart <= 0 || pecStart + 20 >= view.byteLength) {
+        throw new Error('cabeçalho PES aponta para um bloco de pontos inválido.');
+      }
+    } else {
+      throw new Error('assinatura não reconhecida (não parece ser um arquivo PES ou PEC).');
+    }
+    return parsePEC(view, pecStart, magic);
+  }
+
+  function parsePEC(view, base, headerMagic) {
+    const tag = readAscii(view, base, 3);
+    if (tag !== 'LA:') {
+      throw new Error('bloco PEC malformado (marcador "LA:" ausente no offset esperado).');
+    }
+    let label = readAscii(view, base + 3, 16).split('\r')[0].replace(/[^\x20-\x7E]/g, '').trim();
+    const colorCount = view.getUint8(base + 48) + 1;
+    const colorIndices = [];
+    for (let i = 0; i < colorCount; i++) colorIndices.push(view.getUint8(base + 49 + i));
+    const stitchOffset = base + 532;
+    if (stitchOffset >= view.byteLength) throw new Error('bloco de pontos vazio ou arquivo truncado.');
+    const commands = decodeStitches(view, stitchOffset);
+    return { label, colorCount, colorIndices, commands, headerMagic };
+  }
+
+  function decodeCoord(view, pos) {
+    const b = view.getUint8(pos);
+    if (b & 0x80) {
+      const b2 = view.getUint8(pos + 1);
+      const flags = b & 0x70;
+      const raw = ((b & 0x0F) << 8) | b2;
+      const value = raw > 0x7FF ? raw - 0x1000 : raw;
+      return { value, flags, bytes: 2 };
+    }
+    const value = b > 0x3F ? b - 0x80 : b;
+    return { value, flags: 0, bytes: 1 };
+  }
+
+  function decodeStitches(view, start) {
+    const commands = [];
+    const len = view.byteLength;
+    let i = start;
+    let guard = 0;
+    while (i < len && guard < 2_000_000) {
+      guard++;
+      const b1 = view.getUint8(i);
+      if (b1 === 0xFF) { commands.push({ type: 'end' }); break; }
+      if (b1 === 0xFE) { commands.push({ type: 'colorchange' }); i += 2; continue; }
+
+      const c1 = decodeCoord(view, i);
+      i += c1.bytes;
+      if (i >= len) break;
+
+      const next = view.getUint8(i);
+      if (next === 0xFF) { commands.push({ type: 'end' }); break; }
+      if (next === 0xFE) { commands.push({ type: 'colorchange' }); i += 2; continue; }
+
+      const c2 = decodeCoord(view, i);
+      i += c2.bytes;
+
+      const flags = c1.flags | c2.flags;
+      const dy = c1.value, dx = c2.value;
+
+      if (flags & 0x20) {
+        commands.push({ type: 'trim' });
+        commands.push({ type: 'jump', dx, dy });
+      } else if (flags & 0x10) {
+        commands.push({ type: 'jump', dx, dy });
+      } else {
+        commands.push({ type: 'stitch', dx, dy });
+      }
+    }
+    if (commands.length === 0) throw new Error('nenhum ponto foi encontrado no arquivo.');
+    return commands;
+  }
+
+  // ---------- build renderable paths ----------
+
+  function buildPaths(commands, colorIndices) {
+    let x = 0, y = 0;
+    let colorIdx = 0;
+    const paths = [];
+    const jumps = [];
+    let current = { colorIdx, points: [[x, y]] };
+    paths.push(current);
+
+    for (const cmd of commands) {
+      if (cmd.type === 'stitch') {
+        x += cmd.dx; y += cmd.dy;
+        current.points.push([x, y]);
+      } else if (cmd.type === 'jump') {
+        const x0 = x, y0 = y;
+        x += cmd.dx; y += cmd.dy;
+        jumps.push([x0, y0, x, y]);
+        current = { colorIdx, points: [[x, y]] };
+        paths.push(current);
+      } else if (cmd.type === 'colorchange') {
+        colorIdx++;
+        current = { colorIdx, points: [[x, y]] };
+        paths.push(current);
+      } else if (cmd.type === 'trim') {
+        // posição não muda; o próximo "jump" já move a agulha
+      } else if (cmd.type === 'end') {
+        break;
+      }
+    }
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of paths) for (const [px, py] of p.points) {
+      if (px < minX) minX = px; if (px > maxX) maxX = px;
+      if (py < minY) minY = py; if (py > maxY) maxY = py;
+    }
+    if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 0; maxY = 0; }
+
+    const stitchCount = commands.filter(c => c.type === 'stitch').length;
+    const colorBlocks = Math.max(1, colorIdx + 1);
+
+    return { paths, jumps, bounds: { minX, minY, maxX, maxY }, stitchCount, colorBlocks };
+  }
+
+  // ---------- paleta PEC (65 cores de linha Brother) ----------
+  const PEC = ('Unknown 000000,Prussian Blue 0e1f7c,Blue 0a55a3,Teal Green 008777,Cornflower Blue 4b6baf,Red ed171f,Reddish Brown d15c00,Magenta 913697,Light Lilac e49acb,Lilac 915fac,Mint Green 9dd67d,Deep Gold e8a900,Orange feba35,Yellow ffff00,Lime Green 70bc1f,Brass ba9800,Silver a8a8a8,Russet Brown 7d6f00,Cream Brown ffffb3,Pewter 4f5556,Black 000000,Ultramarine 0b3d91,Royal Purple 770176,Dark Gray 293133,Dark Brown 2a1301,Deep Rose f64a8a,Light Brown b27624,Salmon Pink fcbbc5,Vermillion fe370f,White f0f0f0,Violet 6a1c8a,Seacrest a8ddc4,Sky Blue 2584bb,Pumpkin feb343,Cream Yellow fff36b,Khaki d0a660,Clay Brown d15400,Leaf Green 66ba49,Peacock Blue 134a46,Gray 878787,Warm Gray d8ccc6,Dark Olive 435607,Flesh Pink fdd9de,Pink f993bc,Deep Green 003822,Lavender b2afd4,Wisteria Violet 686ab0,Beige efe3b9,Carmine f73866,Amber Red b54b64,Olive Green 132b1a,Dark Fuschia c70156,Tangerine fe9e32,Light Blue a8deeb,Emerald Green 00673e,Purple 4e2990,Moss Green 2f7e20,Pale Pink ffcccc,Harvest Gold ffd911,Electric Blue 095ba6,Lemon Yellow f0f970,Fresh Green e3f35b,Orange ff9900,Pale Yellow fff08d,Applique ffc8c8')
+    .split(',').map(t => { const i = t.lastIndexOf(' '); return { name: t.slice(0, i), hex: '#' + t.slice(i + 1) }; });
+
+  function blockColor(parsed, i) {
+    const idx = parsed.colorIndices[i], c = PEC[idx];
+    if (c && idx > 0) return c;
+    return { name: 'Bloco ' + (i + 1), hex: `hsl(${(i * 47) % 360},70%,45%)` };
+  }
+
+  // ---------- estado e elementos ----------
+  const $ = (id) => document.getElementById(id);
+  const canvas = $('canvas'), ctx = canvas.getContext('2d'), stage = $('stage');
+  const BGS = ['#ffffff', '#c5cad4', '#1b1f29'];
+  const PES_RE = /\.pe[sc]$/i, FOLDER = 'application/vnd.google-apps.folder';
+  const view = { scale: 1, offsetX: 0, offsetY: 0, fit: 1 };
+  const hidden = new Set();
+  let currentResult = null, flip = true, showJumps = false, bgIdx = 0, userMoved = false;
+
+  function showError(msg) { const e = $('errorBox'); e.textContent = msg; e.hidden = false; setStatus(''); }
+  function setStatus(t) { const s = $('status'); s.textContent = t; s.hidden = !t; }
+
+  // ---------- carregar arquivo ----------
+  function loadBuffer(buffer, name) {
+    $('errorBox').hidden = true;
+    try {
+      const parsed = parsePES(buffer);
+      const built = buildPaths(parsed.commands, parsed.colorIndices);
+      const colors = [];
+      for (let i = 0; i < built.colorBlocks; i++) colors.push(blockColor(parsed, i));
+      hidden.clear();
+      currentResult = { parsed, built, colors, fileName: name };
+      $('empty').hidden = true;
+      $('viewer').hidden = false;
+      renderInfo();
+      renderColors();
+      fit();
+      draw();
+    } catch (err) {
+      console.error(err);
+      showError('Não foi possível interpretar este arquivo: ' + err.message);
+    }
+  }
+  async function handleFile(file) {
+    try { loadBuffer(await file.arrayBuffer(), file.name); }
+    catch (e) { showError('Falha ao ler o arquivo.'); }
+  }
+
+  function renderInfo() {
+    const { parsed, built, fileName } = currentResult, b = built.bounds;
+    const items = [
+      ['Arquivo', fileName], ['Rótulo interno', parsed.label || '(sem nome)'],
+      ['Pontos', built.stitchCount.toLocaleString('pt-BR')], ['Cores', built.colorBlocks],
+      ['Tamanho', ((b.maxX - b.minX) / 10).toFixed(1) + ' × ' + ((b.maxY - b.minY) / 10).toFixed(1) + ' mm'],
+    ];
+    $('info').replaceChildren(...items.map(([k, v]) => {
+      const d = document.createElement('div'); d.className = 'chip';
+      const s = document.createElement('small'), strong = document.createElement('b');
+      s.textContent = k; strong.textContent = v; strong.title = v;
+      d.append(s, strong); return d;
+    }));
+  }
+
+  function renderColors() {
+    $('colors').replaceChildren(...currentResult.colors.map((c, i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'col'; b.setAttribute('aria-pressed', 'true');
+      b.title = 'Mostrar/ocultar este bloco';
+      const sw = document.createElement('i'); sw.style.background = c.hex;
+      b.append(sw, document.createTextNode((i + 1) + '. ' + c.name));
+      b.onclick = () => {
+        const off = !hidden.has(i);
+        off ? hidden.add(i) : hidden.delete(i);
+        b.setAttribute('aria-pressed', String(!off)); draw();
+      };
+      return b;
+    }));
+  }
+
+  // ---------- canvas: ajuste, desenho, gestos ----------
+  function ensureSize() {
+    const r = stage.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    const w = Math.round(r.width * d), h = Math.round(r.height * d);
+    if (w < 1 || h < 1 || (canvas.width === w && canvas.height === h)) return false;
+    canvas.width = w; canvas.height = h; return true;
+  }
+  function fit() {
+    if (!currentResult) return;
+    ensureSize();
+    const b = currentResult.built.bounds, pad = 24 * (window.devicePixelRatio || 1);
+    const w = Math.max(1, b.maxX - b.minX), h = Math.max(1, b.maxY - b.minY);
+    view.scale = view.fit = Math.max(1e-3, Math.min((canvas.width - 2 * pad) / w, (canvas.height - 2 * pad) / h));
+    const cx = (b.minX + b.maxX) / 2, cy = ((b.minY + b.maxY) / 2) * (flip ? -1 : 1);
+    view.offsetX = canvas.width / 2 - cx * view.scale;
+    view.offsetY = canvas.height / 2 - cy * view.scale;
+    userMoved = false;
+  }
+  const toScreen = (x, y) => [x * view.scale + view.offsetX, y * (flip ? -1 : 1) * view.scale + view.offsetY];
+
+  function draw() {
+    if (!currentResult) return;
+    ensureSize();
+    const d = window.devicePixelRatio || 1, { built, colors } = currentResult;
+    ctx.fillStyle = BGS[bgIdx];
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (showJumps) {
+      ctx.strokeStyle = 'rgba(150,150,150,.7)'; ctx.setLineDash([4 * d, 3 * d]); ctx.lineWidth = d;
+      for (const [x0, y0, x1, y1] of built.jumps) {
+        const a = toScreen(x0, y0), b = toScreen(x1, y1);
+        ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+    ctx.lineWidth = Math.max(1.2 * d, 2.6 * view.scale); // espessura acompanha o zoom
+    ctx.lineCap = ctx.lineJoin = 'round';
+    for (const p of built.paths) {
+      if (p.points.length < 2 || hidden.has(p.colorIdx)) continue;
+      ctx.strokeStyle = colors[p.colorIdx].hex;
+      ctx.beginPath();
+      p.points.forEach(([x, y], i) => { const s = toScreen(x, y); i ? ctx.lineTo(s[0], s[1]) : ctx.moveTo(s[0], s[1]); });
+      ctx.stroke();
+    }
+  }
+
+  function zoomAt(mx, my, f) {
+    const wx = (mx - view.offsetX) / view.scale, wy = (my - view.offsetY) / view.scale;
+    view.scale = Math.min(Math.max(view.scale * f, view.fit * 0.2), view.fit * 100);
+    view.offsetX = mx - wx * view.scale; view.offsetY = my - wy * view.scale;
+    userMoved = true;
+  }
+
+  new ResizeObserver(() => {
+    if (!currentResult) return;
+    ensureSize(); if (!userMoved) fit(); draw();
+  }).observe(stage);
+
+  const ptrs = new Map(); let pinch = null;
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); pinch = null;
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    const p = ptrs.get(e.pointerId); if (!p) return;
+    const d = window.devicePixelRatio || 1, ox = p.x, oy = p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    if (ptrs.size === 1) {
+      view.offsetX += (p.x - ox) * d; view.offsetY += (p.y - oy) * d; userMoved = true;
+    } else if (ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()], r = canvas.getBoundingClientRect();
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      const mx = ((a.x + b.x) / 2 - r.left) * d, my = ((a.y + b.y) / 2 - r.top) * d;
+      if (pinch) { view.offsetX += mx - pinch.mx; view.offsetY += my - pinch.my; zoomAt(mx, my, dist / pinch.dist); }
+      pinch = { dist, mx, my };
+    }
+    draw();
+  });
+  const endPtr = (e) => { ptrs.delete(e.pointerId); pinch = null; };
+  canvas.addEventListener('pointerup', endPtr);
+  canvas.addEventListener('pointercancel', endPtr);
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const r = canvas.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    zoomAt((e.clientX - r.left) * d, (e.clientY - r.top) * d, Math.exp(-e.deltaY * 0.0015));
+    draw();
+  }, { passive: false });
+  canvas.addEventListener('dblclick', () => { fit(); draw(); });
+
+  // ---------- botões ----------
+  function bindToggle(id, fn) {
+    const b = $(id);
+    b.onclick = () => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', String(on)); fn(on); };
+  }
+  bindToggle('showJumps', (on) => { showJumps = on; draw(); });
+  bindToggle('flipY', (on) => { flip = on; fit(); draw(); });
+  $('bgBtn').onclick = () => { bgIdx = (bgIdx + 1) % BGS.length; draw(); };
+  $('resetView').onclick = () => { fit(); draw(); };
+
+  $('downloadSvg').onclick = () => {
+    if (!currentResult) return;
+    const { built, colors, fileName } = currentResult, { minX, minY, maxX, maxY } = built.bounds, pad = 5;
+    const w = (maxX - minX) + pad * 2, h = (maxY - minY) + pad * 2;
+    const tx = (x) => (x - minX + pad).toFixed(2), ty = (y) => ((flip ? maxY - y : y - minY) + pad).toFixed(2);
+    let body = '';
+    for (const p of built.paths) {
+      if (p.points.length < 2 || hidden.has(p.colorIdx)) continue;
+      const d = p.points.map(([x, y], i) => `${i ? 'L' : 'M'}${tx(x)},${ty(y)}`).join(' ');
+      body += `<path d="${d}" fill="none" stroke="${colors[p.colorIdx].hex}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>\n`;
+    }
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w.toFixed(2)} ${h.toFixed(2)}" width="${w.toFixed(2)}mm" height="${h.toFixed(2)}mm">\n<rect width="100%" height="100%" fill="${BGS[bgIdx]}"/>\n${body}</svg>`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+    a.download = (fileName.replace(/\.[^.]+$/, '') || 'bordado') + '.svg';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+
+  // ---------- abrir arquivo / arrastar ----------
+  $('pick').onclick = () => $('fileInput').click();
+  $('fileInput').onchange = (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ''; };
+  const main = $('main');
+  main.addEventListener('dragover', (e) => { e.preventDefault(); $('empty').classList.add('over'); });
+  main.addEventListener('dragleave', () => $('empty').classList.remove('over'));
+  main.addEventListener('drop', (e) => {
+    e.preventDefault(); $('empty').classList.remove('over');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+
+  // ---------- árvore de arquivos (Drive e pasta local) ----------
+  const side = $('side'), scrim = $('scrim');
+  const openSheet = () => { side.classList.add('open'); scrim.classList.add('show'); };
+  const closeSheet = () => { side.classList.remove('open'); scrim.classList.remove('show'); };
+  $('openTree').onclick = openSheet; $('closeTree').onclick = closeSheet; scrim.onclick = closeSheet;
+
+  const sources = new Map();
+  function setSource(title, nodes) {
+    sources.set(title, nodes);
+    const tree = $('tree'); tree.replaceChildren();
+    for (const [t, ns] of sources) {
+      const g = document.createElement('div'); g.className = 'grp'; g.textContent = t; tree.append(g);
+      if (!ns.length) tree.append(msgEl('Nenhum arquivo .pes/.pec encontrado.'));
+      ns.forEach((n) => tree.append(renderNode(n, 0)));
+    }
+  }
+  function msgEl(t) { const m = document.createElement('div'); m.className = 'msg'; m.textContent = t; return m; }
+
+  function renderNode(n, depth) {
+    const wrap = document.createElement('div');
+    const row = document.createElement('button');
+    row.type = 'button'; row.className = 'row'; row.style.paddingLeft = (12 + depth * 16) + 'px';
+    const ic = document.createElement('span'); ic.className = 'ic'; ic.textContent = n.kind === 'folder' ? '▸' : '•';
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = n.name; nm.title = n.name;
+    row.append(ic, nm); wrap.append(row);
+    if (n.kind === 'folder') {
+      const box = document.createElement('div'); box.hidden = true; wrap.append(box);
+      let loaded = false;
+      row.onclick = async () => {
+        const open = box.hidden; box.hidden = !open; ic.textContent = open ? '▾' : '▸';
+        if (!open || loaded) return;
+        box.replaceChildren(msgEl('Carregando…'));
+        try {
+          const kids = await n.load(); loaded = true; box.replaceChildren();
+          if (!kids.length) box.append(msgEl('Nada por aqui.'));
+          kids.forEach((k) => box.append(renderNode(k, depth + 1)));
+        } catch (e) { box.replaceChildren(msgEl(e.message)); }
+      };
+    } else {
+      row.onclick = async () => {
+        document.querySelectorAll('.row.on').forEach((r) => r.classList.remove('on'));
+        row.classList.add('on'); setStatus('Abrindo ' + n.name + '…');
+        try { const buf = await n.open(); loadBuffer(buf, n.name); setStatus(''); closeSheet(); }
+        catch (e) { showError(e.message); }
+      };
+    }
+    return wrap;
+  }
+
+  // pasta do aparelho (Chrome/Edge no desktop e Android; não existe no iOS)
+  $('dirBtn').onclick = () => $('dirInput').click();
+  $('dirInput').onchange = (e) => {
+    const root = { dirs: new Map(), files: [] };
+    for (const f of e.target.files) {
+      if (!PES_RE.test(f.name)) continue;
+      let d = root;
+      for (const p of (f.webkitRelativePath || f.name).split('/').slice(0, -1)) {
+        if (!d.dirs.has(p)) d.dirs.set(p, { name: p, dirs: new Map(), files: [] });
+        d = d.dirs.get(p);
+      }
+      d.files.push(f);
+    }
+    const nodes = (d) => [...d.dirs.values()].map((s) => ({ name: s.name, kind: 'folder', load: async () => nodes(s) }))
+      .concat([...d.files].sort((a, b) => a.name.localeCompare(b.name, 'pt', { numeric: true }))
+        .map((f) => ({ name: f.name, kind: 'file', open: () => f.arrayBuffer() })));
+    setSource('Pasta do aparelho', nodes(root));
+    e.target.value = '';
+  };
+
+  // ---------- Google Drive (somente leitura) ----------
+  let token = null, tokenExp = 0;
+  const cid = $('clientId');
+  try { cid.value = localStorage.getItem('pes.clientId') || ''; } catch (e) {}
+
+  function gisLoad() {
+    return new Promise((ok, fail) => {
+      if (window.google && google.accounts) return ok();
+      const s = document.createElement('script');
+      s.src = 'https://accounts.google.com/gsi/client'; s.onload = ok;
+      s.onerror = () => fail(new Error('Não consegui carregar o login do Google. Verifique a conexão.'));
+      document.head.appendChild(s);
+    });
+  }
+  async function driveAuth() {
+    if (location.protocol === 'file:') throw new Error('O login do Google não funciona com o arquivo aberto do disco. Hospede a página (ex.: GitHub Pages) ou rode "python -m http.server" e abra pelo localhost.');
+    const id = cid.value.trim();
+    if (!id) { $('cfg').open = true; throw new Error('Cole o Client ID do Google em "Configurar Google Drive".'); }
+    try { localStorage.setItem('pes.clientId', id); } catch (e) {}
+    await gisLoad();
+    return new Promise((ok, fail) => {
+      google.accounts.oauth2.initTokenClient({
+        client_id: id, scope: 'https://www.googleapis.com/auth/drive.readonly',
+        callback: (r) => { if (r.error) return fail(new Error(r.error_description || r.error)); token = r.access_token; tokenExp = Date.now() + (r.expires_in - 60) * 1000; ok(); },
+        error_callback: (e) => fail(new Error('Login cancelado ou bloqueado (' + (e.type || 'erro') + ').')),
+      }).requestAccessToken({ prompt: token ? '' : 'consent' });
+    });
+  }
+  async function driveFetch(path, params, raw) {
+    if (!token || Date.now() > tokenExp) await driveAuth();
+    const r = await fetch('https://www.googleapis.com/drive/v3/' + path + '?' + new URLSearchParams(params), { headers: { Authorization: 'Bearer ' + token } });
+    if (!r.ok) throw new Error('O Drive respondeu com erro ' + r.status + '.');
+    return raw ? r.arrayBuffer() : r.json();
+  }
+  async function driveList(q) {
+    const out = []; let pt = '';
+    do {
+      const p = { q: q + ' and trashed=false', fields: 'nextPageToken,files(id,name,mimeType)', orderBy: 'folder,name', pageSize: '1000', supportsAllDrives: 'true', includeItemsFromAllDrives: 'true' };
+      if (pt) p.pageToken = pt;
+      const r = await driveFetch('files', p); out.push(...r.files); pt = r.nextPageToken;
+    } while (pt);
+    return out.filter((f) => f.mimeType === FOLDER || PES_RE.test(f.name)).map(driveNode);
+  }
+  function driveNode(f) {
+    return f.mimeType === FOLDER
+      ? { name: f.name, kind: 'folder', load: () => driveList(`'${f.id}' in parents`) }
+      : { name: f.name, kind: 'file', open: () => driveFetch('files/' + f.id, { alt: 'media', supportsAllDrives: 'true' }, true) };
+  }
+  $('driveBtn').onclick = async () => {
+    try {
+      setStatus('Conectando ao Google Drive…'); await driveAuth();
+      setSource('Google Drive', [
+        { name: 'Meu Drive', kind: 'folder', load: () => driveList("'root' in parents") },
+        { name: 'Compartilhados comigo', kind: 'folder', load: () => driveList('sharedWithMe') },
+      ]);
+      setStatus('');
+    } catch (e) { showError(e.message); }
+  };
+  $('q').addEventListener('keydown', async (e) => {
+    const t = e.target.value.trim(); if (e.key !== 'Enter' || !t) return;
+    try {
+      setStatus('Buscando…');
+      setSource('Busca no Drive', await driveList("name contains '" + t.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'"));
+      setStatus('');
+    } catch (err) { showError(err.message); }
+  });
+})();
+</script>
+</body>
+</html>
