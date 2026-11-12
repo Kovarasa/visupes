@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#eef1f6">
+<title>Bordados</title>
+<style>
+:root{
+  --bg:#eef1f6;
+  --panel:#ffffff;
+  --sunk:#f5f7fa;
+  --line:#dde2ea;
+  --tx:#1b2028;
+  --mu:#6b7383;
+  --ac:#2f6bff;
+  --ac-soft:#e8efff;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{display:flex;flex-direction:column;height:100dvh;overflow:hidden;background:var(--bg);color:var(--tx);font:14px/1.4 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+
+header{display:flex;align-items:center;gap:10px;padding:8px 14px;padding-top:max(8px,env(safe-area-inset-top));background:var(--panel);border-bottom:1px solid var(--line)}
+h1{flex:1;min-width:0;margin:0;font-size:16px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.btn{min-height:40px;padding:0 16px;border:0;border-radius:10px;background:var(--ac);color:#fff;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn.sec{background:var(--panel);color:var(--tx);border:1px solid var(--line)}
+.btn.sec[aria-pressed=true]{background:var(--ac-soft);border-color:#bfd2ff;color:#1d4ed8}
+.btn.icon{width:40px;padding:0;font-size:18px;line-height:1;flex:none}
+
+#status{padding:6px 14px;font-size:12px;color:var(--mu);background:var(--sunk);border-bottom:1px solid var(--line)}
+
+main{flex:1;min-height:0;display:flex;flex-direction:column}
+
+/* ---------- biblioteca (estilo explorador) ---------- */
+#library{flex:1;min-height:0;overflow:auto;padding-bottom:max(20px,env(safe-area-inset-bottom))}
+#library.over{box-shadow:inset 0 0 0 3px var(--ac)}
+.crumbs{display:flex;align-items:center;flex-wrap:wrap;gap:2px;padding:10px 14px 0;font-size:13px;min-height:0}
+.crumb{border:0;background:none;padding:6px 8px;border-radius:8px;cursor:pointer;color:var(--ac);font-weight:600;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crumb:hover{background:var(--ac-soft)}
+.crumb.cur{color:var(--tx);cursor:default}
+.crumb.cur:hover{background:none}
+.sep{color:var(--mu);opacity:.55}
+
+/* ---------- ordenação ---------- */
+.libbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 14px 0;font-size:12px;color:var(--mu)}
+.libbar .btn{min-height:34px;padding:0 12px;font-size:12px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:14px;padding:14px}
+.card{display:flex;flex-direction:column;gap:4px;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;text-align:left;cursor:pointer;transition:box-shadow .15s,border-color .15s,transform .1s}
+.card:hover{border-color:#bcd0ff;box-shadow:0 6px 18px rgba(28,44,84,.10)}
+.card:active{transform:scale(.985)}
+.card .thumb{aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:4px;color:#8aa4d8}
+.card.folder .thumb{background:linear-gradient(180deg,#f8fbff,#ecf2fe);color:#5b8cff}
+.card .thumb canvas{width:100%;height:100%;display:block}
+.card .nm{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card .sub{font-size:11px;color:var(--mu);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.center-msg{grid-column:1/-1;text-align:center;padding:56px 20px;color:var(--mu);line-height:1.9}
+.center-msg .btn{margin-top:10px}
+
+/* ---------- visualizador ---------- */
+#viewer{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:10px;padding:12px;padding-bottom:max(12px,env(safe-area-inset-bottom))}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:flex;flex-direction:column;padding:6px 12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:0}
+.chip small{color:var(--mu);font-size:11px}
+.chip b{font-size:14px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stage{position:relative;flex:1;min-height:300px;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+#canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+.hint{position:absolute;right:8px;bottom:6px;padding:2px 8px;font-size:11px;color:#fff;background:rgba(0,0,0,.5);border-radius:6px;pointer-events:none}
+.colors{display:flex;flex-wrap:wrap;gap:8px}
+.col{display:flex;align-items:center;gap:8px;min-height:36px;padding:0 12px 0 6px;background:var(--panel);border:1px solid var(--line);border-radius:18px;cursor:pointer;white-space:nowrap;font-size:13px}
+.col i{width:20px;height:20px;border-radius:50%;border:1px solid rgba(0,0,0,.12)}
+.col[aria-pressed=false]{opacity:.45;text-decoration:line-through}
+.tools{display:flex;flex-wrap:wrap;gap:8px}
+
+/* ---------- erro ---------- */
+#errorBox{position:fixed;left:12px;right:12px;bottom:max(12px,env(safe-area-inset-bottom));z-index:50;max-width:600px;margin:0 auto;padding:12px 16px;background:#fff2f2;border:1px solid #f2b8b8;color:#9b1c1c;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.14);cursor:pointer;font-size:13px}
+
+@media(max-width:760px){
+  .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;padding:10px}
+  .chips,.colors,.tools{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+  .chips::-webkit-scrollbar,.colors::-webkit-scrollbar,.tools::-webkit-scrollbar{display:none}
+  .chip,.col,.tools .btn{flex:none}
+  .tools .btn{min-height:44px}
+  .libbar .btn{min-height:38px}
+  .hint{display:none}
+}
+@media(prefers-reduced-motion:reduce){.card{transition:none}}
+</style>
+</head>
+<body>
+<header>
+  <button class="btn sec icon" id="backBtn" type="button" hidden aria-label="Voltar para a biblioteca">←</button>
+  <h1 id="title">Bordados</h1>
+</header>
+<div id="status" role="status" hidden></div>
+
+<main>
+  <section id="library" aria-label="Biblioteca de bordados">
+    <nav class="crumbs" id="crumbs" aria-label="Caminho"></nav>
+    <div class="libbar" aria-label="Ordenação">
+      <span>Ordenar por</span>
+      <button class="btn sec" id="sortName" type="button" aria-pressed="true">Nome</button>
+      <button class="btn sec" id="sortDate" type="button" aria-pressed="false">Data</button>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <section id="viewer" hidden aria-label="Visualizador">
+    <div class="chips" id="info"></div>
+    <div class="stage" id="stage">
+      <canvas id="canvas" aria-label="Desenho do bordado"></canvas>
+      <div class="hint">arraste para mover · role ou pince para zoom · toque duplo centraliza</div>
+    </div>
+    <div class="colors" id="colors" aria-label="Cores de linha"></div>
+    <div class="tools">
+      <button class="btn sec" id="showJumps" type="button" aria-pressed="false">Saltos</button>
+      <button class="btn sec" id="flipY" type="button" aria-pressed="true">Inverter vertical</button>
+      <button class="btn sec" id="bgBtn" type="button">Fundo</button>
+      <button class="btn sec" id="resetView" type="button">Centralizar</button>
+      <button class="btn" id="downloadSvg" type="button">Baixar SVG</button>
+    </div>
+  </section>
+</main>
+
+<div id="errorBox" role="alert" hidden></div>
+
+<script>
+(function () {
+  // ---------- PES / PEC parsing ----------
+
+  function readAscii(view, offset, length) {
+    let s = '';
+    for (let i = 0; i < length; i++) s += String.fromCharCode(view.getUint8(offset + i));
+    return s;
+  }
+
+  function parsePES(buffer) {
+    const view = new DataView(buffer);
+    if (view.byteLength < 16) throw new Error('arquivo muito pequeno / vazio.');
+    const magic = readAscii(view, 0, 8);
+    let pecStart;
+    if (magic === '#PEC0001') {
+      pecStart = 8;
+    } else if (magic.slice(0, 4) === '#PES') {
+      pecStart = view.getUint32(8, true);
+      if (pecStart <= 0 || pecStart + 20 >= view.byteLength) {
+        throw new Error('cabeçalho PES aponta para um bloco de pontos inválido.');
+      }
+    } else {
+      throw new Error('assinatura não reconhecida (não parece ser um arquivo PES ou PEC).');
+    }
+    return parsePEC(view, pecStart, magic);
+  }
+
+  function parsePEC(view, base, headerMagic) {
+    const tag = readAscii(view, base, 3);
+    if (tag !== 'LA:') {
+      throw new Error('bloco PEC malformado (marcador "LA:" ausente no offset esperado).');
+    }
+    let label = readAscii(view, base + 3, 16).split('\r')[0].replace(/[^\x20-\x7E]/g, '').trim();
+    const colorCount = view.getUint8(base + 48) + 1;
+    const colorIndices = [];
+    for (let i = 0; i < colorCount; i++) colorIndices.push(view.getUint8(base + 49 + i));
+    const stitchOffset = base + 532;
+    if (stitchOffset >= view.byteLength) throw new Error('bloco de pontos vazio ou arquivo truncado.');
+    const commands = decodeStitches(view, stitchOffset);
+    return { label, colorCount, colorIndices, commands, headerMagic };
+  }
+
+  // Decodifica o bloco de pontos PEC (mesma lógica do pyembroidery):
+  //  - cada ponto = X e depois Y; cada valor tem 1 byte (-64..63) ou 2 bytes (12 bits, bit 0x80 no 1º byte)
+  //  - nos valores de 2 bytes, 0x20 = corte (trim) e 0x10 = salto (jump)
+  //  - FE B0 xx = troca de cor (3 bytes); FF 00 = fim
+  function decodeStitches(view, start) {
+    const commands = [];
+    const len = view.byteLength;
+    const s12 = (v) => (v > 0x7FF ? v - 0x1000 : v);
+    let i = start;
+    while (i + 1 < len) {
+      const v1 = view.getUint8(i), v2 = view.getUint8(i + 1);
+      if (v1 === 0xFF && v2 === 0x00) { commands.push({ type: 'end' }); break; }
+      if (v1 === 0xFE && v2 === 0xB0) { commands.push({ type: 'colorchange' }); i += 3; continue; }
+
+      let jump = false, trim = false, dx, dy, b2 = v2;
+      i += 2;
+      if (v1 & 0x80) {
+        if (v1 & 0x20) trim = true;
+        if (v1 & 0x10) jump = true;
+        dx = s12(((v1 << 8) | v2) & 0x0FFF);
+        if (i >= len) break;
+        b2 = view.getUint8(i); i += 1;
+      } else {
+        dx = v1 >= 0x40 ? v1 - 0x80 : v1;
+      }
+      if (b2 & 0x80) {
+        if (b2 & 0x20) trim = true;
+        if (b2 & 0x10) jump = true;
+        if (i >= len) break;
+        const b3 = view.getUint8(i); i += 1;
+        dy = s12(((b2 << 8) | b3) & 0x0FFF);
+      } else {
+        dy = b2 >= 0x40 ? b2 - 0x80 : b2;
+      }
+
+      if (trim) commands.push({ type: 'trim' });
+      commands.push({ type: (trim || jump) ? 'jump' : 'stitch', dx, dy });
+    }
+    if (commands.length === 0) throw new Error('nenhum ponto foi encontrado no arquivo.');
+    return commands;
+  }
+
+  // ---------- build renderable paths ----------
+
+  function buildPaths(commands) {
+    let x = 0, y = 0;
+    let colorIdx = 0;
+    const paths = [];
+    const jumps = [];
+    let current = { colorIdx, points: [[x, y]] };
+    paths.push(current);
+
+    for (const cmd of commands) {
+      if (cmd.type === 'stitch') {
+        x += cmd.dx; y += cmd.dy;
+        current.points.push([x, y]);
+      } else if (cmd.type === 'jump') {
+        const x0 = x, y0 = y;
+        x += cmd.dx; y += cmd.dy;
+        jumps.push([x0, y0, x, y]);
+        current = { colorIdx, points: [[x, y]] };
+        paths.push(current);
+      } else if (cmd.type === 'colorchange') {
+        colorIdx++;
+        current = { colorIdx, points: [[x, y]] };
+        paths.push(current);
+      } else if (cmd.type === 'trim') {
+        // posição não muda; o próximo "jump" já move a agulha
+      } else if (cmd.type === 'end') {
+        break;
+      }
+    }
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of paths) for (const [px, py] of p.points) {
+      if (px < minX) minX = px; if (px > maxX) maxX = px;
+      if (py < minY) minY = py; if (py > maxY) maxY = py;
+    }
+    if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 0; maxY = 0; }
+
+    const stitchCount = commands.filter(c => c.type === 'stitch').length;
+    const colorBlocks = Math.max(1, colorIdx + 1);
+
+    return { paths, jumps, bounds: { minX, minY, maxX, maxY }, stitchCount, colorBlocks };
+  }
+
+  // ---------- paleta PEC (65 cores de linha Brother) ----------
+  const PEC = ('Unknown 000000,Prussian Blue 0e1f7c,Blue 0a55a3,Teal Green 008777,Cornflower Blue 4b6baf,Red ed171f,Reddish Brown d15c00,Magenta 913697,Light Lilac e49acb,Lilac 915fac,Mint Green 9dd67d,Deep Gold e8a900,Orange feba35,Yellow ffff00,Lime Green 70bc1f,Brass ba9800,Silver a8a8a8,Russet Brown 7d6f00,Cream Brown ffffb3,Pewter 4f5556,Black 000000,Ultramarine 0b3d91,Royal Purple 770176,Dark Gray 293133,Dark Brown 2a1301,Deep Rose f64a8a,Light Brown b27624,Salmon Pink fcbbc5,Vermillion fe370f,White f0f0f0,Violet 6a1c8a,Seacrest a8ddc4,Sky Blue 2584bb,Pumpkin feb343,Cream Yellow fff36b,Khaki d0a660,Clay Brown d15400,Leaf Green 66ba49,Peacock Blue 134a46,Gray 878787,Warm Gray d8ccc6,Dark Olive 435607,Flesh Pink fdd9de,Pink f993bc,Deep Green 003822,Lavender b2afd4,Wisteria Violet 686ab0,Beige efe3b9,Carmine f73866,Amber Red b54b64,Olive Green 132b1a,Dark Fuschia c70156,Tangerine fe9e32,Light Blue a8deeb,Emerald Green 00673e,Purple 4e2990,Moss Green 2f7e20,Pale Pink ffcccc,Harvest Gold ffd911,Electric Blue 095ba6,Lemon Yellow f0f970,Fresh Green e3f35b,Orange ff9900,Pale Yellow fff08d,Applique ffc8c8')
+    .split(',').map(t => { const i = t.lastIndexOf(' '); return { name: t.slice(0, i), hex: '#' + t.slice(i + 1) }; });
+
+  function blockColor(parsed, i) {
+    const idx = parsed.colorIndices[i], c = PEC[idx];
+    if (c && idx > 0) return c;
+    return { name: 'Bloco ' + (i + 1), hex: `hsl(${(i * 47) % 360},70%,45%)` };
+  }
+
+  // ---------- estado e elementos ----------
+  const $ = (id) => document.getElementById(id);
+  const canvas = $('canvas'), ctx = canvas.getContext('2d'), stage = $('stage');
+  const libraryEl = $('library'), viewerEl = $('viewer'), gridEl = $('grid');
+  const BGS = ['#ffffff', '#c5cad4', '#1b1f29'];
+  const PES_RE = /\.pe[sc]$/i;
+  const THUMB = 220;
+  const view = { scale: 1, offsetX: 0, offsetY: 0, fit: 1 };
+  const hidden = new Set();
+  let currentResult = null, flip = true, showJumps = false, bgIdx = 0, userMoved = false;
+  let viewing = false;
+  let navStack = [];
+  let libraryState = 'loading'; // 'loading' | 'ok' | 'error'
+
+  // ordenação
+  let sortBy = 'name'; // 'name' | 'date'
+  let renderToken = 0;
+  let ghRepo = null, ghBranch = null, dateFetchBlocked = false;
+  const dateCache = new Map(); // path -> timestamp (ms) ou Promise<number>
+
+  let errorTimer = null;
+  function showError(msg) {
+    const e = $('errorBox');
+    e.textContent = msg;
+    e.hidden = false;
+    clearTimeout(errorTimer);
+    errorTimer = setTimeout(() => { e.hidden = true; }, 8000);
+  }
+  function hideError() { $('errorBox').hidden = true; clearTimeout(errorTimer); }
+  $('errorBox').onclick = hideError;
+  function setStatus(t) { const s = $('status'); s.textContent = t; s.hidden = !t; }
+  function fmtSize(b) {
+    if (!b && b !== 0) return '';
+    return b < 1024 ? b + ' B' : b < 1048576 ? Math.round(b / 1024) + ' KB' : (b / 1048576).toFixed(1) + ' MB';
+  }
+  function msgEl(t) { const m = document.createElement('div'); m.className = 'center-msg'; m.textContent = t; return m; }
+
+  // ---------- miniaturas (geradas no navegador, só quando ficam visíveis) ----------
+  function makeThumb(buffer, size) {
+    const parsed = parsePES(buffer);
+    const built = buildPaths(parsed.commands);
+    const c = document.createElement('canvas'); c.width = c.height = size;
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, size, size);
+    const b = built.bounds, pad = size * 0.1, k = flip ? -1 : 1;
+    const sc = Math.min((size - 2 * pad) / Math.max(1, b.maxX - b.minX), (size - 2 * pad) / Math.max(1, b.maxY - b.minY));
+    const ox = size / 2 - (b.minX + b.maxX) / 2 * sc, oy = size / 2 - (b.minY + b.maxY) / 2 * k * sc;
+    g.lineWidth = Math.max(1, 3 * sc); g.lineCap = g.lineJoin = 'round';
+    for (const p of built.paths) {
+      if (p.points.length < 2) continue;
+      g.strokeStyle = blockColor(parsed, p.colorIdx).hex; g.beginPath();
+      p.points.forEach(([x, y], i) => i ? g.lineTo(x * sc + ox, y * k * sc + oy) : g.moveTo(x * sc + ox, y * k * sc + oy));
+      g.stroke();
+    }
+    return { canvas: c, stitchCount: built.stitchCount, colors: built.colorBlocks };
+  }
+
+  const jobs = []; let running = 0;
+  function pump() {
+    while (running < 3 && jobs.length) {
+      const job = jobs.shift(); running++;
+      Promise.resolve().then(job).catch(() => {}).finally(() => { running--; pump(); });
+    }
+  }
+  const io = new IntersectionObserver((es) => {
+    for (const e of es) {
+      if (e.isIntersecting) {
+        io.unobserve(e.target);
+        if (e.target._job) { jobs.push(e.target._job); pump(); }
+      }
+    }
+  }, { root: libraryEl, rootMargin: '250px' });
+
+  // ---------- datas dos arquivos da biblioteca GitHub ----------
+  async function fetchGitHubDate(node) {
+    if (dateCache.has(node.path)) return dateCache.get(node.path);
+    if (dateFetchBlocked || !ghRepo || !ghBranch || !node.path) return 0;
+    const p = (async () => {
+      try {
+        const arr = await ghJson(`https://api.github.com/repos/${ghRepo}/commits?path=${encodeURIComponent(node.path)}&per_page=1`);
+        const iso = Array.isArray(arr) && arr[0] && arr[0].commit && arr[0].commit.committer && arr[0].commit.committer.date;
+        const d = iso ? Date.parse(iso) : 0;
+        dateCache.set(node.path, d);
+        return d;
+      } catch (e) {
+        if (/limitou/.test(e.message)) dateFetchBlocked = true;
+        dateCache.set(node.path, 0);
+        return 0;
+      }
+    })();
+    dateCache.set(node.path, p);
+    return p;
+  }
+
+  async function fetchDatesLimited(nodes, concurrency = 4) {
+    let i = 0;
+    const worker = async () => {
+      while (i < nodes.length) {
+        const n = nodes[i++];
+        n.date = await fetchGitHubDate(n);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(concurrency, nodes.length) }, worker));
+  }
+
+  // ---------- biblioteca ----------
+  function renderCrumbs() {
+    const c = $('crumbs');
+    c.replaceChildren();
+    navStack.forEach((lvl, i) => {
+      if (i) { const s = document.createElement('span'); s.className = 'sep'; s.textContent = '›'; c.append(s); }
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'crumb';
+      b.textContent = lvl.name; b.title = lvl.name;
+      if (i === navStack.length - 1) b.classList.add('cur');
+      else b.onclick = () => { navStack = navStack.slice(0, i + 1); renderGrid(); };
+      c.append(b);
+    });
+  }
+
+  function makeCard(n) {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'card' + (n.kind === 'folder' ? ' folder' : '');
+    const thumb = document.createElement('div'); thumb.className = 'thumb';
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = n.name; nm.title = n.name;
+    const sub = document.createElement('span'); sub.className = 'sub';
+
+    if (n.kind === 'folder') {
+      thumb.innerHTML = '<svg viewBox="0 0 24 24" width="46" height="46" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"><path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4L10.5 8h9A1.5 1.5 0 0 1 21 9.5v8A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5z"/></svg>';
+      sub.textContent = 'Pasta';
+      card.onclick = async () => {
+        setStatus('Carregando ' + n.name + '…');
+        try {
+          const kids = await n.load();
+          navStack.push({ name: n.name, nodes: kids });
+          setStatus('');
+          renderGrid();
+          libraryEl.scrollTop = 0;
+        } catch (e) { setStatus(''); showError(e.message); }
+      };
+    } else {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = THUMB;
+      thumb.append(cv);
+      sub.textContent = fmtSize(n.size) || '…';
+      const get = () => n._p || (n._p = n.open().catch((e) => { n._p = null; throw e; }));
+      cv._job = () => get().then((buf) => {
+        const r = makeThumb(buf, THUMB);
+        cv.getContext('2d').drawImage(r.canvas, 0, 0);
+        sub.textContent = r.stitchCount.toLocaleString('pt-BR') + ' pontos · ' + r.colors + (r.colors === 1 ? ' cor' : ' cores');
+      });
+      card.onclick = async () => {
+        setStatus('Abrindo ' + n.name + '…');
+        try { const buf = await get(); setStatus(''); loadBuffer(buf, n.name); }
+        catch (e) { setStatus(''); showError(e.message); }
+      };
+    }
+    card.append(thumb, nm, sub);
+    return card;
+  }
+
+  async function renderGrid() {
+    const token = ++renderToken;
+    jobs.length = 0;
+    renderCrumbs();
+
+    const level = navStack[navStack.length - 1];
+    if (!level) {
+      const m = msgEl(libraryState === 'loading' ? 'Carregando biblioteca…' : 'Não foi possível carregar a biblioteca.');
+      if (libraryState === 'error') {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn'; b.textContent = 'Tentar novamente';
+        b.onclick = () => { libraryState = 'loading'; renderGrid(); loadRepo(REPO); };
+        m.append(b);
+      }
+      gridEl.replaceChildren(m);
+      return;
+    }
+
+    // Ao ordenar por data, garante as datas (para arquivos do GitHub)
+    if (sortBy === 'date') {
+      const missing = level.nodes.filter((n) => n.kind === 'file' && n.date === undefined);
+      if (missing.length) {
+        setStatus('Carregando datas…');
+        await fetchDatesLimited(missing);
+        if (token !== renderToken) return;
+        setStatus('');
+      }
+    }
+
+    const nodes = [...level.nodes].sort((a, b) => {
+      if (a.kind !== b.kind) return a.kind === 'folder' ? -1 : 1;
+      if (sortBy === 'date') {
+        const da = a.date || 0, db = b.date || 0;
+        if (da !== db) return db - da; // mais recentes primeiro
+      }
+      return a.name.localeCompare(b.name, 'pt', { numeric: true });
+    });
+
+    if (!nodes.length) {
+      gridEl.replaceChildren(msgEl('Nenhum arquivo .pes ou .pec nesta pasta.'));
+      return;
+    }
+
+    gridEl.replaceChildren(...nodes.map(makeCard));
+    // só depois de anexados ao DOM começamos a observar as miniaturas
+    gridEl.querySelectorAll('canvas').forEach((cv) => { if (cv._job) io.observe(cv); });
+  }
+
+  // ---------- visualizador ----------
+  function ensureSize() {
+    const r = stage.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    const w = Math.round(r.width * d), h = Math.round(r.height * d);
+    if (w < 1 || h < 1 || (canvas.width === w && canvas.height === h)) return false;
+    canvas.width = w; canvas.height = h; return true;
+  }
+  const toScreen = (x, y) => [x * view.scale + view.offsetX, y * (flip ? -1 : 1) * view.scale + view.offsetY];
+
+  function fit() {
+    if (!currentResult) return;
+    ensureSize();
+    const b = currentResult.built.bounds, pad = 24 * (window.devicePixelRatio || 1);
+    const w = Math.max(1, b.maxX - b.minX), h = Math.max(1, b.maxY - b.minY);
+    view.scale = view.fit = Math.max(1e-3, Math.min((canvas.width - 2 * pad) / w, (canvas.height - 2 * pad) / h));
+    const cx = (b.minX + b.maxX) / 2, cy = ((b.minY + b.maxY) / 2) * (flip ? -1 : 1);
+    view.offsetX = canvas.width / 2 - cx * view.scale;
+    view.offsetY = canvas.height / 2 - cy * view.scale;
+    userMoved = false;
+  }
+
+  function draw() {
+    if (!currentResult) return;
+    ensureSize();
+    const d = window.devicePixelRatio || 1, { built, colors } = currentResult;
+    ctx.fillStyle = BGS[bgIdx];
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (showJumps) {
+      ctx.strokeStyle = 'rgba(150,150,150,.7)'; ctx.setLineDash([4 * d, 3 * d]); ctx.lineWidth = d;
+      for (const [x0, y0, x1, y1] of built.jumps) {
+        const a = toScreen(x0, y0), b = toScreen(x1, y1);
+        ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+    ctx.lineWidth = Math.max(1.2 * d, 2.6 * view.scale);
+    ctx.lineCap = ctx.lineJoin = 'round';
+    for (const p of built.paths) {
+      if (p.points.length < 2 || hidden.has(p.colorIdx)) continue;
+      ctx.strokeStyle = colors[p.colorIdx].hex;
+      ctx.beginPath();
+      p.points.forEach(([x, y], i) => { const s = toScreen(x, y); i ? ctx.lineTo(s[0], s[1]) : ctx.moveTo(s[0], s[1]); });
+      ctx.stroke();
+    }
+  }
+
+  function renderInfo() {
+    const { parsed, built, fileName } = currentResult, b = built.bounds;
+    const items = [
+      ['Arquivo', fileName], ['Rótulo interno', parsed.label || '(sem nome)'],
+      ['Pontos', built.stitchCount.toLocaleString('pt-BR')], ['Cores', built.colorBlocks],
+      ['Tamanho', ((b.maxX - b.minX) / 10).toFixed(1) + ' × ' + ((b.maxY - b.minY) / 10).toFixed(1) + ' mm'],
+    ];
+    $('info').replaceChildren(...items.map(([k, v]) => {
+      const d = document.createElement('div'); d.className = 'chip';
+      const s = document.createElement('small'), strong = document.createElement('b');
+      s.textContent = k; strong.textContent = v; strong.title = v;
+      d.append(s, strong); return d;
+    }));
+  }
+
+  function renderColors() {
+    $('colors').replaceChildren(...currentResult.colors.map((c, i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'col'; b.setAttribute('aria-pressed', 'true');
+      b.title = 'Mostrar/ocultar este bloco';
+      const sw = document.createElement('i'); sw.style.background = c.hex;
+      b.append(sw, document.createTextNode((i + 1) + '. ' + c.name));
+      b.onclick = () => {
+        const off = !hidden.has(i);
+        off ? hidden.add(i) : hidden.delete(i);
+        b.setAttribute('aria-pressed', String(!off)); draw();
+      };
+      return b;
+    }));
+  }
+
+  function openViewer() {
+    viewing = true;
+    libraryEl.hidden = true;
+    viewerEl.hidden = false;
+    $('backBtn').hidden = false;
+    $('title').textContent = currentResult ? currentResult.fileName : 'Bordado';
+    viewerEl.scrollTop = 0;
+    requestAnimationFrame(() => { ensureSize(); fit(); draw(); });
+  }
+  function closeViewer() {
+    viewing = false;
+    viewerEl.hidden = true;
+    libraryEl.hidden = false;
+    $('backBtn').hidden = true;
+    $('title').textContent = 'Bordados';
+  }
+
+  function loadBuffer(buffer, name) {
+    hideError();
+    try {
+      const parsed = parsePES(buffer);
+      const built = buildPaths(parsed.commands);
+      const colors = [];
+      for (let i = 0; i < built.colorBlocks; i++) colors.push(blockColor(parsed, i));
+      hidden.clear();
+      currentResult = { parsed, built, colors, fileName: name };
+      renderInfo();
+      renderColors();
+      openViewer();
+    } catch (err) {
+      console.error(err);
+      showError('Não foi possível interpretar "' + name + '": ' + err.message);
+    }
+  }
+
+  async function handleFile(file) {
+    if (!PES_RE.test(file.name)) return showError('"' + file.name + '" não é um arquivo .pes ou .pec.');
+    try { loadBuffer(await file.arrayBuffer(), file.name); }
+    catch (e) { showError('Falha ao ler o arquivo.'); }
+  }
+
+  function handleFiles(fileList) {
+    const files = [...fileList];
+    if (!files.length) return;
+    if (files.length === 1) return handleFile(files[0]);
+
+    const nodes = files.filter((f) => PES_RE.test(f.name))
+      .sort((a, b) => a.name.localeCompare(b.name, 'pt', { numeric: true }))
+      .map((f) => ({ name: f.name, kind: 'file', size: f.size, date: f.lastModified, open: () => f.arrayBuffer() }));
+
+    if (!nodes.length) return showError('Nenhum arquivo .pes ou .pec foi encontrado.');
+
+    navStack = [{ name: 'Arquivos locais', nodes }];
+    libraryState = 'ok';
+    if (viewing) closeViewer();
+    renderGrid();
+  }
+
+  // ---------- gestos no canvas ----------
+  function zoomAt(mx, my, f) {
+    const wx = (mx - view.offsetX) / view.scale, wy = (my - view.offsetY) / view.scale;
+    view.scale = Math.min(Math.max(view.scale * f, view.fit * 0.2), view.fit * 100);
+    view.offsetX = mx - wx * view.scale; view.offsetY = my - wy * view.scale;
+    userMoved = true;
+  }
+
+  new ResizeObserver(() => {
+    if (!currentResult || !viewing) return;
+    ensureSize(); if (!userMoved) fit(); draw();
+  }).observe(stage);
+
+  const ptrs = new Map(); let pinch = null;
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); pinch = null;
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    const p = ptrs.get(e.pointerId); if (!p) return;
+    const d = window.devicePixelRatio || 1, ox = p.x, oy = p.y;
+    p.x = e.clientX; p.y = e.clientY;
+    if (ptrs.size === 1) {
+      view.offsetX += (p.x - ox) * d; view.offsetY += (p.y - oy) * d; userMoved = true;
+    } else if (ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()], r = canvas.getBoundingClientRect();
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      const mx = ((a.x + b.x) / 2 - r.left) * d, my = ((a.y + b.y) / 2 - r.top) * d;
+      if (pinch) { view.offsetX += mx - pinch.mx; view.offsetY += my - pinch.my; zoomAt(mx, my, dist / pinch.dist); }
+      pinch = { dist, mx, my };
+    }
+    draw();
+  });
+  const endPtr = (e) => { ptrs.delete(e.pointerId); pinch = null; };
+  canvas.addEventListener('pointerup', endPtr);
+  canvas.addEventListener('pointercancel', endPtr);
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const r = canvas.getBoundingClientRect(), d = window.devicePixelRatio || 1;
+    zoomAt((e.clientX - r.left) * d, (e.clientY - r.top) * d, Math.exp(-e.deltaY * 0.0015));
+    draw();
+  }, { passive: false });
+  canvas.addEventListener('dblclick', () => { fit(); draw(); });
+
+  // ---------- botões ----------
+  function bindToggle(id, fn) {
+    const b = $(id);
+    b.onclick = () => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', String(on)); fn(on); };
+  }
+  bindToggle('showJumps', (on) => { showJumps = on; draw(); });
+  bindToggle('flipY', (on) => { flip = on; fit(); draw(); });
+  $('bgBtn').onclick = () => { bgIdx = (bgIdx + 1) % BGS.length; draw(); };
+  $('resetView').onclick = () => { fit(); draw(); };
+  $('backBtn').onclick = closeViewer;
+
+  function setSort(mode) {
+    if (sortBy === mode) return;
+    sortBy = mode;
+    $('sortName').setAttribute('aria-pressed', String(mode === 'name'));
+    $('sortDate').setAttribute('aria-pressed', String(mode === 'date'));
+    renderGrid();
+  }
+  $('sortName').onclick = () => setSort('name');
+  $('sortDate').onclick = () => setSort('date');
+
+  $('downloadSvg').onclick = () => {
+    if (!currentResult) return;
+    const { built, colors, fileName } = currentResult, { minX, minY, maxX, maxY } = built.bounds, pad = 5;
+    const w = (maxX - minX) + pad * 2, h = (maxY - minY) + pad * 2;
+    const tx = (x) => (x - minX + pad).toFixed(2), ty = (y) => ((flip ? maxY - y : y - minY) + pad).toFixed(2);
+    let body = '';
+    for (const p of built.paths) {
+      if (p.points.length < 2 || hidden.has(p.colorIdx)) continue;
+      const d = p.points.map(([x, y], i) => `${i ? 'L' : 'M'}${tx(x)},${ty(y)}`).join(' ');
+      body += `<path d="${d}" fill="none" stroke="${colors[p.colorIdx].hex}" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>\n`;
+    }
+    const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w.toFixed(2)} ${h.toFixed(2)}" width="${w.toFixed(2)}mm" height="${h.toFixed(2)}mm">\n<rect width="100%" height="100%" fill="${BGS[bgIdx]}"/>\n${body}</svg>`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
+    a.download = (fileName.replace(/\.[^.]+$/, '') || 'bordado') + '.svg';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+
+  // ---------- arrastar e soltar (arquivos locais) ----------
+  let dragDepth = 0;
+  const hasFiles = (e) => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+  document.addEventListener('dragenter', (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault(); dragDepth++;
+    if (!viewing) libraryEl.classList.add('over');
+  });
+  document.addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
+  document.addEventListener('dragleave', (e) => {
+    if (!hasFiles(e)) return;
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (!dragDepth) libraryEl.classList.remove('over');
+  });
+  document.addEventListener('drop', (e) => {
+    if (!e.dataTransfer || !e.dataTransfer.files.length) return;
+    e.preventDefault(); dragDepth = 0; libraryEl.classList.remove('over');
+    handleFiles(e.dataTransfer.files);
+  });
+
+  // ---------- biblioteca no GitHub (repositório fixo) ----------
+  const REPO = 'kovarasa/visupes';
+
+  async function ghJson(url) {
+    const r = await fetch(url);
+    if (r.status === 404) throw new Error('Repositório não encontrado. Ele precisa ser público.');
+    if (r.status === 403) throw new Error('O GitHub limitou as consultas (60 por hora sem login). Tente de novo mais tarde.');
+    if (!r.ok) throw new Error('O GitHub respondeu com erro ' + r.status + '.');
+    return r.json();
+  }
+
+  async function loadRepo(repo) {
+    try {
+      setStatus('Carregando biblioteca…');
+      const key = 'pes.tree.v2.' + repo; let data;
+      try { const c = JSON.parse(sessionStorage.getItem(key)); if (c && Date.now() - c.t < 600000) data = c; } catch (e) {}
+      if (!data) {
+        const br = (await ghJson('https://api.github.com/repos/' + repo)).default_branch;
+        const t = await ghJson(`https://api.github.com/repos/${repo}/git/trees/${encodeURIComponent(br)}?recursive=1`);
+        data = {
+          t: Date.now(), br, truncated: t.truncated,
+          paths: t.tree.filter((i) => i.type === 'blob' && PES_RE.test(i.path)).map((i) => ({ path: i.path, size: i.size })),
+        };
+        try { sessionStorage.setItem(key, JSON.stringify(data)); } catch (e) {}
+      }
+
+      ghRepo = repo; ghBranch = data.br;
+
+      const root = { dirs: new Map(), files: [] };
+      for (const item of data.paths) {
+        const parts = item.path.split('/'), name = parts.pop(); let d = root;
+        for (const p of parts) {
+          if (!d.dirs.has(p)) d.dirs.set(p, { name: p, dirs: new Map(), files: [] });
+          d = d.dirs.get(p);
+        }
+        d.files.push({ name, path: item.path, size: item.size });
+      }
+
+      const enc = (p) => p.split('/').map(encodeURIComponent).join('/');
+      const fetchBuf = async (f) => {
+        const url = `https://raw.githubusercontent.com/${repo}/${data.br}/` + enc(f.path);
+        const r = await fetch(url);
+        if (!r.ok) throw new Error('Não consegui baixar ' + f.name + '.');
+        return r.arrayBuffer();
+      };
+      const nodes = (d) => [...d.dirs.values()].map((s) => ({ name: s.name, kind: 'folder', load: async () => nodes(s) }))
+        .concat([...d.files].sort((a, b) => a.name.localeCompare(b.name, 'pt', { numeric: true }))
+          .map((f) => ({ name: f.name, kind: 'file', size: f.size, path: f.path, open: () => fetchBuf(f) })));
+
+      navStack = [{ name: 'Biblioteca', nodes: nodes(root) }];
+      libraryState = 'ok';
+      renderGrid();
+      setStatus(data.truncated ? 'Repositório muito grande: a lista está incompleta.' : '');
+    } catch (e) {
+      setStatus('');
+      libraryState = 'error';
+      renderGrid();
+      showError(e.message);
+    }
+  }
+
+  // ---------- início ----------
+  libraryState = 'loading';
+  renderGrid();
+  loadRepo(REPO);
+})();
+</script>
+</body>
+</html>
